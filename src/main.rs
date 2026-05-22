@@ -12,10 +12,9 @@ struct Command {
     flag: Option<String>,
     query: String,
     file_name: String,
-    pwd: Option<String>,
 }
 
-fn raw_match(query: &str, file_name: &str) -> std::io::Result<()> {
+fn sensitive_matches(flag: Option<String>, query: &str, file_name: &str) -> std::io::Result<()> {
     let path = Path::new(file_name);
     //let display = path.display();
     //print!("path: {:?}\n", display);
@@ -23,22 +22,54 @@ fn raw_match(query: &str, file_name: &str) -> std::io::Result<()> {
     //Open the path in read only mode which returns a io::Result<File>
     let file = File::open(path)?;
     println!("file: {:?}", file);
-
+    println!("flag: {:?}", flag.as_deref());
     //Read the content of the file
-    let reader = BufReader::new(&file);
-
-    //Case sensitive match
-    for l in reader.lines() {
-        let line_content = l?;
-        if line_content.contains(query) {
-            println!("matched line: {}", line_content);
+    if flag.as_deref().is_none() {
+        //Case sensitive match
+        let reader = BufReader::new(&file);
+        for l in reader.lines() {
+            let line_content = l?;
+            if line_content.contains(query) {
+                println!("matched line: {}", line_content);
+            }
+        }
+    } else if flag.as_deref() == Some("-ni") {
+        let path = Path::new(&file_name);
+        let file = File::open(path)?;
+        let reader = BufReader::new(&file);
+        for (i, l) in reader.lines().enumerate() {
+            let line_content = l?;
+            let line_vec: Vec<&str> = line_content.split_whitespace().collect();
+            for entry in line_vec {
+                //println!("entry: {}", entry);
+                if query.eq_ignore_ascii_case(entry) {
+                    println!("{}: {}", i + 1, line_content);
+                    break;
+                }
+            }
+        }
+    } else {
+        //Case insensitive match
+        let path = Path::new(&file_name);
+        let file = File::open(path)?;
+        let reader = BufReader::new(&file);
+        for l in reader.lines() {
+            let line_content = l?;
+            let line_vec: Vec<&str> = line_content.split_whitespace().collect();
+            for entry in line_vec {
+                //println!("entry: {}", entry);
+                if query.eq_ignore_ascii_case(entry) {
+                    println!("matched line: {}", line_content);
+                    break;
+                }
+            }
         }
     }
 
     Ok(())
 }
 
-fn search_file(query_arg: &str, file_name: &str) -> std::io::Result<()> {
+fn recursive_search_wih_linenum(query_arg: &str, file_name: &str) -> std::io::Result<()> {
     let path = Path::new(file_name);
     let current_directory = env::current_dir().expect("couldn't find directory");
     //open the path in read only mode which returns a io::Result<File>
@@ -86,12 +117,6 @@ fn search_file(query_arg: &str, file_name: &str) -> std::io::Result<()> {
 }
 
 fn main() -> std::io::Result<()> {
-    //Path of the current-directory
-    let path_string: String = match env::current_dir() {
-        Ok(path_buf) => path_buf.to_string_lossy().into_owned(),
-        Err(_) => String::from("Fallback/Default/Path"),
-    };
-
     //Reading the input and storing it in a vector of string slices
     let args: Vec<String> = env::args().collect();
     for (i, arg) in args.iter().enumerate() {
@@ -99,41 +124,37 @@ fn main() -> std::io::Result<()> {
     }
 
     //Arg validation
-    //if args.len() < 5 {
-    //    eprintln!("Number of argument is not satisfied");
-    //    return Ok(());
-    //}
+    if args.len() < 3 {
+        eprintln!("Number of argument is not satisfied");
+        return Ok(());
+    }
 
-    if args[1].starts_with('-') {
+    if args[1].starts_with('-') && args[1] != "-i" && args[1] != "-ni" {
         let flag: Option<String> = Some(args[1].clone());
         let query = &args[2];
         let file_name = &args[3];
-        let mut pwd: Option<String> = None;
-        match flag.as_deref() {
-            Some("-n") => pwd = None,
-            Some("-i") => pwd = None,
-            Some("-r") => pwd = Some(path_string),
-            _ => eprintln!("Flag didn;t match"),
-        }
         let command = Command {
             flag: flag.clone(),
             query: query.to_string(),
             file_name: file_name.to_string(),
-            pwd: pwd.clone(),
         };
-        search_file(&command.query, &command.file_name)?;
+        recursive_search_wih_linenum(&command.query, &command.file_name)?;
     } else {
-        let flag: Option<String> = None;
-        let query = &args[1];
-        let file_name = &args[2];
-        let pwd: Option<String> = None;
-        let command = Command {
-            flag: flag.clone(),
-            query: query.to_string(),
-            file_name: file_name.to_string(),
-            pwd: pwd.clone(),
-        };
-        raw_match(&command.query, &command.file_name)?;
+        if args.len() == 3 {
+            let command = Command {
+                flag: None,
+                query: args[1].clone(),
+                file_name: args[2].clone(),
+            };
+            sensitive_matches(command.flag, &command.query, &command.file_name)?;
+        } else {
+            let command = Command {
+                flag: Some(args[1].clone()),
+                query: args[2].clone(),
+                file_name: args[3].clone(),
+            };
+            sensitive_matches(command.flag, &command.query, &command.file_name)?;
+        }
     }
 
     Ok(())
