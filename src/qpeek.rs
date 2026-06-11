@@ -36,13 +36,15 @@ pub fn qpeek_w(
 
             frame.render_widget(
                 Block::bordered()
-                    .title("Left Side")
+                    .title_alignment(Alignment::Center)
+                    .title("File List")
                     .border_type(BorderType::Rounded),
                 layout[0],
             );
             frame.render_widget(
                 Block::bordered()
-                    .title("Right Side")
+                    .title_alignment(Alignment::Center)
+                    .title("Matched Content")
                     .border_type(BorderType::Rounded),
                 layout[1],
             );
