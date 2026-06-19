@@ -1,3 +1,4 @@
 Hello this is rust, and this the most interesting lang i learnd 
 such a good lang new . It is kinda like functional programing lang 
+dynamic title for the new file supernova
 

@@ -1,10 +1,13 @@
 use crate::qpeek::qpeek_w;
+use crate::util::Peek;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
 use ratatui::{Terminal, backend::CrosstermBackend};
+
+use indexmap::IndexMap;
 use std::env;
 use std::fs::File;
 use std::io::BufReader;
@@ -105,7 +108,7 @@ pub fn recursive_search(
         // println!("file: {:?}", file);
 
         //quick peek logic
-        let mut peek_vec: Vec<(PathBuf, String)> = Vec::new();
+        let mut peek_vec: Vec<Peek> = Vec::new();
 
         //Match for recursive_search
         if path_to_check == Path::new(".")
@@ -127,8 +130,20 @@ pub fn recursive_search(
                         if line.contains(query)
                             && let Ok(relative_path) = full_path.strip_prefix(&base)
                         {
-                            peek_vec.push((relative_path.to_path_buf(), line.clone()));
-                            println!("./{}: {}", relative_path.display(), line);
+                            let fname = Some(relative_path.to_path_buf());
+                            let mut cvec = Vec::new();
+                            cvec.push(line.clone());
+
+                            //Instance of a singel peek
+                            let peek = Peek {
+                                file_name: fname,
+                                content_vec: cvec,
+                            };
+                            if let Some(names) = &peek.file_name.as_deref() {
+                                println!("./{}: {}", names.display(), line);
+                            }
+
+                            peek_vec.push(peek);
                         }
                     }
                 }
@@ -136,12 +151,6 @@ pub fn recursive_search(
         } else {
             eprintln!("Invalid partent folder detected");
         }
-
-        // let mut peek_vec_index = 0;
-        // while peek_vec_index < peek_vec.len() {
-        //     println!("peek_vec elements: {:?}", peek_vec[peek_vec_index]);
-        //     peek_vec_index += 1;
-        // }
 
         if flag.as_deref() == Some("-qpeek") {
             // Terminal Setup
@@ -152,7 +161,26 @@ pub fn recursive_search(
             let terminal = Terminal::new(backend)?;
 
             // Run app
-            let result = qpeek_w(terminal, peek_vec);
+
+            //Formatting the peek vec
+            let mut formatted_map: IndexMap<Option<PathBuf>, Vec<String>> = IndexMap::new();
+            for items in peek_vec {
+                formatted_map
+                    .entry(items.file_name)
+                    .and_modify(|existing_content| {
+                        existing_content.extend(items.content_vec.clone());
+                    })
+                    .or_insert(items.content_vec);
+            }
+            let filtered_vec: Vec<Peek> = formatted_map
+                .into_iter()
+                .map(|(fname, content)| Peek {
+                    file_name: fname,
+                    content_vec: content,
+                })
+                .collect();
+            println!("filtered_vec: {:?}", filtered_vec);
+            let result = qpeek_w(terminal, filtered_vec, query);
 
             // Restore terminal
             disable_raw_mode()?;

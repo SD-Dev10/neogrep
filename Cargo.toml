@@ -10,3 +10,6 @@ crossterm ="0.28.1"
 ratatui = "0.29.0"
 ratatui-textarea = "0.4"
 tui-textarea = "0.7"
+ansi-to-tui = "7.0.0"
+indexmap = "2.0"
+

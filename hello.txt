@@ -2,3 +2,5 @@ Hello this is rust, and this the most interesting lang i learnd
 such a good lang. It is kinda like functional programing lang 
 and cpp had a baby 
 but hello whacha doing. no hello needed
+the current need to learn rust as is high cuz its mimic functional lang things
+lisp is pure functional lang 
