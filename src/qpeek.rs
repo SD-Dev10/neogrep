@@ -36,11 +36,14 @@ pub fn qpeek_w(
             let layout = Layout::horizontal([Constraint::Fill(1), Constraint::Fill(1)])
                 .split(smaller_box_area[0]);
 
+            let gray = Color::Rgb(105, 105, 105);
+
             frame.render_widget(
                 Block::bordered()
                     .title_alignment(Alignment::Center)
-                    .title("File List")
-                    .border_type(BorderType::Rounded),
+                    .title(" File List ")
+                    .border_type(BorderType::Rounded)
+                    .title_style(Style::default().fg(gray)),
                 layout[0],
             );
 
@@ -86,12 +89,13 @@ pub fn qpeek_w(
                         .file_name
                         .as_deref()
                         .map(|name| name.display().to_string())
-                        .unwrap_or_else(|| "Untitled".to_string());
-
+                        .unwrap_or_else(|| " Untitled ".to_string());
+                    let formatted_title = format!(" {} ", title_to_render);
                     frame.render_widget(
                         Block::bordered()
                             .title_alignment(Alignment::Center)
-                            .title(title_to_render.as_str())
+                            .title(formatted_title.as_str())
+                            .title_style(Style::default().fg(gray))
                             .border_type(BorderType::Rounded),
                         layout[1],
                     );
@@ -99,7 +103,7 @@ pub fn qpeek_w(
                 None => {}
             }
 
-            //Content window to check the matched highlighted word
+            // Content window to check the matched highlighted word
             match content_index {
                 Some(line_vector_idx) => {
                     let mut content_to_render = filtered_vec[line_vector_idx].content_vec.clone();
@@ -111,17 +115,37 @@ pub fn qpeek_w(
                         }
                     }
 
-                    let full_text = content_to_render.join("\n");
-                    let paragraph_text = full_text.as_str().into_text().unwrap_or_default();
+                    let mut final_text = Text::default();
 
-                    let paragraph = Paragraph::new(paragraph_text)
-                        .block(Block::default().style(Style::default().bg(Color::Rgb(15, 10, 10))))
-                        .wrap(Wrap { trim: true });
+                    for (idx, line) in content_to_render.into_iter().enumerate() {
+                        let line_num_str = format!("{}  ", idx + 1);
+                        let mut spans = vec![Span::raw(line_num_str).fg(gray)];
 
+                        let parsed_text = line.as_str().into_text().unwrap_or_default();
+                        for t_line in parsed_text.lines {
+                            let mut found_highlight = false;
+                            let color = Color::Rgb(237, 234, 226);
+                            for mut span in t_line.spans {
+                                if span.style.fg == Some(Color::Indexed(229)) {
+                                    found_highlight = true;
+                                } else if found_highlight {
+                                    span = span.fg(color);
+                                } else if span.style.fg.is_none() {
+                                    span = span.fg(color);
+                                }
+
+                                spans.push(span);
+                            }
+                        }
+                        final_text.lines.push(Line::from(spans));
+                    }
+
+                    let paragraph = Paragraph::new(final_text).wrap(Wrap { trim: false });
                     frame.render_widget(paragraph, cbox_vertical_center[0]);
                 }
                 None => {}
             }
+
             //Info span to for keymaps
             let info_span = Span::styled(
                 "Press <q> to exit, use <j> and <k> to move Up/Down",
